@@ -1,4 +1,4 @@
-from db import connect;
+from database.db import connect;
 
 class LocalEstreia:
 

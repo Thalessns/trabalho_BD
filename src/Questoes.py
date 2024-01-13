@@ -1,11 +1,118 @@
 import pandas as pd
+from utils import print_table, clear, bars, menu, get_input;
 import matplotlib.pyplot as plt
 from database.db import connect;
+from database.pessoa import Pessoa;
+from database.filme import Filme;
+from database.evento import Evento;
+from database.premio import Premio;
+from database.enominado import Enominado;
+from database.filmenominado import FilmeNominado;
 
 class Questoes:
     def __init__(self):
         self.con = connect();
         self.cursor = self.con.cursor();
+
+    def Questao1_A(self):
+        bars(size=100)
+        print("""DELIMITER //
+                CREATE TRIGGER before_insert_ejuri
+                BEFORE INSERT ON ejuri
+                FOR EACH ROW
+                BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM enominado
+                    WHERE pessoa = NEW.nome
+                ) THEN
+                    SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Inserção em ejuri não permitida. (Uma pessoa não pode ser júri de um Evento se participar de um filme aí indicado, com qualquer papel)';
+                END IF;
+                END;
+                //
+                DELIMITER;
+        """)
+        bars(size=100)
+        input("Pressione ENTER para continuar...")
+        
+    def Questao1_B(self):
+        bars(size=100)
+        print("""DELIMITER //
+            CREATE TRIGGER before_insert_AtorElenco
+            BEFORE INSERT ON AtorElenco
+            FOR EACH ROW
+            BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM Filmes
+                WHERE IdFilme = NEW.Filme and classe = 'documentario'
+            ) THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Inserção em AtorElenco não permitida.';
+            END IF;
+            END;
+            //
+            DELIMITER ;
+
+            DELIMITER //
+            CREATE TRIGGER before_insert_AtorPrinc
+            BEFORE INSERT ON AtorPrinc
+            FOR EACH ROW
+            BEGIN
+            IF EXISTS (
+                SELECT 1
+                FROM Filmes
+                WHERE IdFilme = NEW.Filme and classe = 'documentario'
+            ) THEN
+                SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Inserção em AtorPrinc não permitida.';
+            END IF;
+            END;
+            //
+            DELIMITER ;
+        """)
+        bars(size=100)
+        input("Pressione ENTER para continuar...")
+
+    def Quastao2_A(self):
+        opcoes = ["Sair", "Pessoa", "Filme", "Evento", "Premio", "Pessoas Indicadas", "Filmes Indicados"]
+        
+        while True:
+            # Limpando tela
+            clear()
+            # Mostrando menu
+            menu(title="Menu de Cadastro", params=opcoes)
+            # Pegando opção do usuário
+            escolha = get_input("Escolha uma das opções acima, pelo número listado: ")
+            # Verificando opções escolhidas
+            if (escolha.isdigit()) and (int(escolha) in range(0, len(opcoes))):
+                escolha = int(escolha)
+                if escolha == 0: 
+                    print("Saindo...")
+                    bars(size=50)
+                    return
+                elif escolha == 1:
+                    p = Pessoa()
+                    p.preparar_insercao()
+                elif escolha == 2:
+                    f = Filme()
+                    f.preparar_insercao()
+                elif escolha == 3:
+                    e = Evento()
+                    e.preparar_insercao()
+                elif escolha == 4:
+                    pr = Premio()
+                    pr.preparar_insercao()
+                elif escolha == 5:
+                    en = Enominado()
+                    en.preparar_insercao()
+                elif escolha == 6:
+                    fn = FilmeNominado()
+                    fn.preparar_insercao()
+
+            else:
+                get_input(f"Por favor, digite um número válido [0, {len(opcoes)-1}]\nPRESS ENTER TO CONTINUE...")
 
     def Questao2_B_1 (self): ## apresente os 10 atores com maior número de prêmios.
         consulta_sql = """SELECT NomeArt, count(Ganhou) as Premios
@@ -64,57 +171,32 @@ class Questoes:
 
 
     def Questao2_B_4 (self): ## listar os atores (atrizes) nominados como melhor ator em todos os eventos existentes”.
-        consulta_sql = """SELECT NomeArt
-                         FROM ENominado EN, Premio PR
-                            WHERE EN.CodPremio = PR.CodPremio
-                                AND (PR.TipoPremio in ('melhor ator principal', 'melhor atriz principal', 'melhor ator coadjuvante',
-                                                        'melhor atriz coadjuvante')
-                         ORDER BY NomeArt
-                         """
+        e = Enominado()
+        resp = e.select_questao_2b_4()
+        print_table(data=resp, columns=["Ator"], title="Atores e Atriz indicados como melhor ator em toos os eventos existentes")
+        input("Pessione ENTER para continuar...")
+
         
     def Questao2_B_5 (self): ## dado um prêmio, indique quais foram os autores ou filmes nominados e premiados.
         
-        consulta_sql = "SELECT * FROM Premio"
-        total_premios = "SELECT CodPremio FROM Premio"
+        p = Premio();
+        while True:
+            clear()
+            print_table(data=p.select_all(), columns=["CodPremio", "Tipo", "Evento"], title="Tabela de Premios");
 
-        print(consulta_sql)
-        ''' premio = input("""
-                          01    |  Melhor Ator Principal        | Oscar 
-                          02    |  Melhor Atriz Principal       | Oscar - enominado
-                          03    |  Melhor Ator Coadjuvante      | Oscar - enominado
-                          04    |  Melhor Atriz Coadjuvante     | Oscar - enominado
-                          05    |  Melhor Filme                 | Oscar - filmeNominado
-                          06    |  Melhor Direção               | Oscar - filmeNominado
-                          07    |  Melhor Ator Principal        | Bafta - enominado
-                          08    |  Melhor Atriz Principal       | Bafta - enominado
-                          09    |  Melhor Ator Coadjuvante      | Bafta - enominado
-                       
-                          10    |  Melhor Atriz Coadjuvante     | Bafta - enominado
-                          11    |  Melhor Filme                 | Bafta - filmeNominado
-                          12    |  Melhor Direção               | Bafta - filmeNominado
-                          13    |  Melhor Ator Principal        | Golden Globe - enominado
-                          14    |  Melhor Atriz Principal       | Golden Globe - enominado
-                          15    |  Melhor Ator Coadjuvante      | Golden Globe - enominado
-                          16    |  Melhor Atriz Coadjuvante     | Golden Globe - enominado
-                          17    |  Melhor Filme                 | Golden Globe - filmeNominado
-                          18    |  Melhor Direção               | Golden Globe - filmeNominado
-                       
-                       Digite o código do premio conforme a tabela: 
-                       """)
-        '''
-
-        premio = input("Digite o código do premio conforme a tabela: ")
-
-        if(premio ):
-            print("Código inválido")
-            return;
-        
-        consulta_sql = f"""
-                        SELECT Filme, Pessoa as Atores
-                        FROM ENominado EN, FilmeNominado FN
-                        WHERE EN.CodPremio = '{premio}' AND FN.CodPremio = '{premio}'
-                        """
-        
-q = Questoes();
-q.Questao2_B_5();
+            premio = input("Digite o código do premio conforme a tabela [Digite 0 caso queira sair]: ");
+            if premio.isdigit():
+                premio = int(premio)
+                tipo = p.select_tipo(cod_premio=premio)
+                
+                if premio == 0: return;
+                elif ("ator" in tipo) or ("atriz" in tipo):
+                    e = Enominado();
+                    print_table(data=e.select_premio(cod_premio=premio), columns=["Pessoa", "Ganhou"], title="Tabela de Pessoas Indicadas");
+                else:
+                    f = FilmeNominado();
+                    print_table(data=f.select_premio(codpremio=premio), columns=["Titulo Original", "Titulo Traduzido", "Premiado"], title="Tabela de Filmes Indicados");
+            else:
+                print("Por favor, escolha apenas numeros!")
+            input("Pressione ENTER para continuar...")
 
